@@ -102,8 +102,8 @@ class Bear(bytes, Enum):
         return self.label.lower().replace(" ", "")
     
     POLAR = (0,'Polar')
-    # GRIZZLY = (1,'Grizzly')
-    # PANDA = (2,'Panda')
+    GRIZZLY = (1,'Grizzly')
+    PANDA = (2,'Panda')
     
 class Bg(bytes, Enum):
     def __new__(cls, value, label):

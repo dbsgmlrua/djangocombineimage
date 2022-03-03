@@ -1,9 +1,13 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 
+#rest_framworks
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.serializers import Serializer
+from rest_framework import status
+
 
 from .serializers import TestSerializer
 from pngmerge.serializerObjects.testserializers import testSerializerObject
@@ -11,6 +15,10 @@ from .gomenum import Hand, Bg, Bear, Hat, Mouth, Eye
 
 from PIL import Image
 
+from .serializers import TestSerializer, AttributesSerializer, MetaDataSerializer, MetaDataGetSerializer, ImagePostSerializer
+from .models import MetaData
+
+import json
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def Test(request):
@@ -83,6 +91,8 @@ def gomimg(request, bg, gom, eye, mouth, hat, hand):
         base_img.paste(handimage, mask=handimage)
     
     response = HttpResponse(content_type="image/png")
+    print("pngmerge/gomimage/result/" + str(bg) + "_" + str(gom) + "_" + str(eye) + "_" + str(mouth) + "_" + str(hat) + "_" + str(hand) + ".png")
+    base_img.save("pngmerge/gomimage/result/" + str(bg) + "_" + str(gom) + "_" + str(eye) + "_" + str(mouth) + "_" + str(hat) + "_" + str(hand) + ".png", format="png") 
     base_img.save(response, format="png")
     return response
 
@@ -117,6 +127,12 @@ def makeImageAndData(request):
 # def savegomimg(bg, gom, eye, mouth, hat, hand):
 #     print("pngmerge/gomimage/result/" + str(bg) + "_" + str(gom) + "_" + str(eye) + "_" + str(mouth) + "_" + str(hat) + "_" + str(hand) + ".png")
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def makeGomImage(request, bg, gom, eye, mouth, hat, hand):
+    response, base_img = savegomimg(bg, gom, eye, mouth, hat, hand)
+    base_img.save(response, format="png")
+    return response
 
 def savegomimg(bg, gom, eye, mouth, hat, hand):
     bgimage = Image.open('pngmerge/gomimage/Background/'+ Bg(bg).lower_name_remove_space() +'.png').convert("RGBA")
@@ -145,4 +161,59 @@ def savegomimg(bg, gom, eye, mouth, hat, hand):
     response = HttpResponse(content_type="image/png")
     print("pngmerge/gomimage/result/" + str(bg) + "_" + str(gom) + "_" + str(eye) + "_" + str(mouth) + "_" + str(hat) + "_" + str(hand) + ".png")
     base_img.save("pngmerge/gomimage/result/" + str(bg) + "_" + str(gom) + "_" + str(eye) + "_" + str(mouth) + "_" + str(hat) + "_" + str(hand) + ".png", format="png")
-    return response
+    return response, base_img
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def metadata(request):
+    MetaData.objects.all().delete()
+    serializer = MetaDataSerializer(data = request.data, many=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    else:
+        print('error', serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def getmetadata(request):
+    data = MetaData.objects.all();
+    for d in data:
+        att = d.metadata.all()
+        d.attributes = att
+    serializer = MetaDataGetSerializer(data, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def getmetadatabyid(request, id):
+    metadata = MetaData.objects.filter(id=id).first()
+    att = metadata.metadata.all()
+    metadata.attributes = att
+    serializer = MetaDataGetSerializer(metadata, context={'base_url': request.get_host()})
+    
+        
+    with open('pngmerge/gomimage/json/' + str(metadata.id) + '.json', 'w') as jsonfile:
+        serializer = MetaDataGetSerializer(metadata)
+        json.dump(serializer.data, jsonfile, indent=4)
+    return Response(serializer.data)
+
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def getmetadatatojson(request):
+    data = MetaData.objects.all();
+    for d in data:
+        att = d.metadata.all()
+        d.attributes = att
+        
+        with open('pngmerge/gomimage/json/' + str(d.id) + '.json', 'w') as jsonfile:
+            serializer = MetaDataGetSerializer(d)
+            json.dump(serializer.data, jsonfile, indent=4)
+            
+    serializer = MetaDataGetSerializer(data, many=True)
+    return Response(serializer.data)
